@@ -7,10 +7,11 @@ class HomeShell extends StatelessWidget {
 
   int _currentIndex(BuildContext context) {
     final location = GoRouterState.of(context).uri.toString();
-    if (location.startsWith('/trailers')) return 1;
-    if (location.startsWith('/exclusive')) return 2;
-    if (location.startsWith('/feedback')) return 3;
-    return 0;
+    if (location.startsWith('/news')) return 1;
+    if (location.startsWith('/trailers')) return 2;
+    if (location.startsWith('/exclusive')) return 3;
+    if (location.startsWith('/feedback')) return 4;
+    return 0; // films
   }
 
   @override
@@ -22,16 +23,19 @@ class HomeShell extends StatelessWidget {
         onTap: (index) {
           switch (index) {
             case 0:
-              context.go('/news');
+              context.go('/films');
             case 1:
-              context.go('/trailers');
+              context.go('/news');
             case 2:
-              context.go('/exclusive');
+              context.go('/trailers');
             case 3:
+              context.go('/exclusive');
+            case 4:
               context.go('/feedback');
           }
         },
         items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.movie_outlined), label: 'Films'),
           BottomNavigationBarItem(icon: Icon(Icons.newspaper), label: 'News'),
           BottomNavigationBarItem(icon: Icon(Icons.play_circle_outline), label: 'Trailers'),
           BottomNavigationBarItem(icon: Icon(Icons.star_outline), label: 'Exclusive'),
