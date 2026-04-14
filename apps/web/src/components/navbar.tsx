@@ -3,11 +3,13 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { createClient } from "@/lib/supabase/client";
 import type { User } from "@supabase/supabase-js";
 
 const navLinks = [
   { href: "/", label: "Home" },
+  { href: "/films", label: "Films" },
   { href: "/news", label: "News" },
   { href: "/trailers", label: "Trailers" },
   { href: "/exclusive", label: "Exclusive" },
@@ -19,6 +21,8 @@ export default function Navbar() {
   const [user, setUser] = useState<User | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+  const [hoveredLink, setHoveredLink] = useState<string | null>(null);
   const supabase = createClient();
 
   useEffect(() => {
@@ -48,6 +52,14 @@ export default function Navbar() {
     return () => subscription.unsubscribe();
   }, []);
 
+  useEffect(() => {
+    function onScroll() {
+      setScrolled(window.scrollY > 20);
+    }
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
   async function handleSignOut() {
     await supabase.auth.signOut();
     setUser(null);
@@ -59,12 +71,18 @@ export default function Navbar() {
     : navLinks;
 
   return (
-    <nav className="sticky top-0 z-50 bg-secondary/80 backdrop-blur-md border-b border-border">
+    <nav
+      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
+        scrolled ? "frosted" : "bg-transparent"
+      }`}
+    >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2">
-            <span className="text-2xl font-bold text-primary">Rhythm Boyz</span>
+            <span className="text-2xl font-display tracking-widest text-foreground">
+              RHYTHM BOYZ
+            </span>
           </Link>
 
           {/* Desktop Nav */}
@@ -79,13 +97,24 @@ export default function Navbar() {
                 <Link
                   key={link.href}
                   href={link.href}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    isActive
-                      ? "bg-primary text-white"
-                      : "text-muted hover:text-foreground hover:bg-card"
-                  }`}
+                  className="relative px-4 py-2 text-sm font-medium transition-colors"
+                  onMouseEnter={() => setHoveredLink(link.href)}
+                  onMouseLeave={() => setHoveredLink(null)}
                 >
-                  {link.label}
+                  <span
+                    className={
+                      isActive ? "text-primary" : "text-muted hover:text-foreground"
+                    }
+                  >
+                    {link.label}
+                  </span>
+                  {(hoveredLink === link.href || isActive) && (
+                    <motion.div
+                      layoutId="nav-underline"
+                      className="absolute bottom-0 left-2 right-2 h-[2px] bg-primary rounded-full"
+                      transition={{ type: "spring", stiffness: 350, damping: 30 }}
+                    />
+                  )}
                 </Link>
               );
             })}
@@ -126,68 +155,95 @@ export default function Navbar() {
             )}
           </div>
 
-          {/* Mobile menu button */}
+          {/* Mobile menu button — animated hamburger */}
           <button
             onClick={() => setMenuOpen(!menuOpen)}
-            className="md:hidden p-2 rounded-lg text-muted hover:text-foreground"
+            className="md:hidden relative p-2 w-10 h-10 rounded-lg text-foreground"
+            aria-label="Toggle menu"
           >
-            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              {menuOpen ? (
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              ) : (
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-              )}
-            </svg>
+            <motion.span
+              className="absolute left-2 h-[2px] w-6 bg-current rounded-full"
+              animate={
+                menuOpen
+                  ? { top: "50%", rotate: 45, translateY: "-50%" }
+                  : { top: "30%", rotate: 0, translateY: "0%" }
+              }
+              transition={{ duration: 0.25 }}
+            />
+            <motion.span
+              className="absolute left-2 top-1/2 h-[2px] w-6 bg-current rounded-full -translate-y-1/2"
+              animate={menuOpen ? { opacity: 0, scaleX: 0 } : { opacity: 1, scaleX: 1 }}
+              transition={{ duration: 0.2 }}
+            />
+            <motion.span
+              className="absolute left-2 h-[2px] w-6 bg-current rounded-full"
+              animate={
+                menuOpen
+                  ? { bottom: "50%", rotate: -45, translateY: "50%" }
+                  : { bottom: "30%", rotate: 0, translateY: "0%" }
+              }
+              transition={{ duration: 0.25 }}
+            />
           </button>
         </div>
 
         {/* Mobile menu */}
-        {menuOpen && (
-          <div className="md:hidden pb-4 space-y-1">
-            {allLinks.map((link) => {
-              const isActive =
-                link.href === "/"
-                  ? pathname === "/"
-                  : pathname.startsWith(link.href);
+        <AnimatePresence>
+          {menuOpen && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.25 }}
+              className="md:hidden overflow-hidden"
+            >
+              <div className="pb-4 space-y-1">
+                {allLinks.map((link) => {
+                  const isActive =
+                    link.href === "/"
+                      ? pathname === "/"
+                      : pathname.startsWith(link.href);
 
-              return (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  onClick={() => setMenuOpen(false)}
-                  className={`block px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    isActive
-                      ? "bg-primary text-white"
-                      : "text-muted hover:text-foreground hover:bg-card"
-                  }`}
-                >
-                  {link.label}
-                </Link>
-              );
-            })}
-            <div className="pt-2 border-t border-border">
-              {user ? (
-                <>
-                  <Link href="/profile" onClick={() => setMenuOpen(false)} className="block px-4 py-2 text-sm text-muted hover:text-foreground">
-                    Profile
-                  </Link>
-                  <button onClick={handleSignOut} className="block w-full text-left px-4 py-2 text-sm text-muted hover:text-foreground">
-                    Sign Out
-                  </button>
-                </>
-              ) : (
-                <>
-                  <Link href="/auth/login" onClick={() => setMenuOpen(false)} className="block px-4 py-2 text-sm text-muted hover:text-foreground">
-                    Log In
-                  </Link>
-                  <Link href="/auth/signup" onClick={() => setMenuOpen(false)} className="block px-4 py-2 text-sm text-primary font-medium">
-                    Sign Up
-                  </Link>
-                </>
-              )}
-            </div>
-          </div>
-        )}
+                  return (
+                    <Link
+                      key={link.href}
+                      href={link.href}
+                      onClick={() => setMenuOpen(false)}
+                      className={`block px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        isActive
+                          ? "bg-primary text-white"
+                          : "text-muted hover:text-foreground hover:bg-card"
+                      }`}
+                    >
+                      {link.label}
+                    </Link>
+                  );
+                })}
+                <div className="pt-2 border-t border-border">
+                  {user ? (
+                    <>
+                      <Link href="/profile" onClick={() => setMenuOpen(false)} className="block px-4 py-2 text-sm text-muted hover:text-foreground">
+                        Profile
+                      </Link>
+                      <button onClick={handleSignOut} className="block w-full text-left px-4 py-2 text-sm text-muted hover:text-foreground">
+                        Sign Out
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <Link href="/auth/login" onClick={() => setMenuOpen(false)} className="block px-4 py-2 text-sm text-muted hover:text-foreground">
+                        Log In
+                      </Link>
+                      <Link href="/auth/signup" onClick={() => setMenuOpen(false)} className="block px-4 py-2 text-sm text-primary font-medium">
+                        Sign Up
+                      </Link>
+                    </>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </nav>
   );
